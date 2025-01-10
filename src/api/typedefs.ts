@@ -50,6 +50,10 @@ export interface AnimeThemeMeta {
 
 export interface AnimeDescription {
 	id: number
+
+	/** name of the anime.
+	 * example: "Shingeki no Kyojin Season 3"
+	*/
 	name: string
 
 	media_format: "TV" | "Movie"
@@ -113,6 +117,8 @@ export interface ArtistDescription {
 
 export interface VideoResourceMeta {
 	id: number
+
+	/** contains the {@link filename} plus the ".webm" extension appended. */
 	basename: string
 
 	/** the base file name is a combination of "anime-name" + "op/ed-number" + "tags".
@@ -148,6 +154,8 @@ export interface VideoResourceMeta {
 
 export interface AudioResourceMeta {
 	id: number
+
+	/** contains the {@link filename} plus the ".ogg" extension appended. */
 	basename: string
 
 	/** same as {@link VideoResourceMeta.filename}. */

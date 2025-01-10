@@ -52,7 +52,9 @@ export const encodeM3u8 = (entries: M3u8Entries, playlist_path: string | URL = "
 	playlist_path = isString(playlist_path) ? playlist_path : playlist_path.href
 	const entries_str: string[] = ["#EXTM3U",]
 	for (const { name, path } of entries) {
-		const relative_entry_path = relativePath(playlist_path, path)
+		let relative_entry_path = path
+		try { relative_entry_path = relativePath(playlist_path, path) }
+		catch { console.warn("no common path between the following playlist file and music file:", playlist_path, path) }
 		entries_str.push(`#EXTINF:0,${name}`, relative_entry_path)
 	}
 	return entries_str.join("\n")
