@@ -34,24 +34,34 @@ export interface DownloadPlaylistToFsConfig {
 	titleFn: (track_meta: TrackResourceMeta, track_index: number, full_track_list: Array<TrackResourceMeta>) => string
 }
 
-export const default_DownloadPlaylistToFsConfig: DownloadPlaylistToFsConfig = {
+export const defaultDownloadPlaylistToFsConfig: DownloadPlaylistToFsConfig = {
 	dir: "./out/tracks/",
 	playlist: "./out/playlist.m3u",
 	dryrun: false,
 	filenameFn: (track_meta: TrackResourceMeta, track_index: number) => {
+		const anime_name_char_limit = 30
+		let anime_name = track_meta.animethemeentry.animetheme.anime.slug.toLowerCase()
+		// below, we reduce the file name if it is too long, by snipping off everything after the next over-limit underscore ("_") character.
+		if (anime_name.length >= anime_name_char_limit) {
+			const snipping_index = anime_name.indexOf("_", anime_name_char_limit)
+			anime_name = anime_name.slice(0, snipping_index < 0 ? undefined : snipping_index)
+		}
 		const
-			anime_name = track_meta.animethemeentry.animetheme.anime.slug.toLowerCase(),
 			theme_slug = track_meta.animethemeentry.animetheme.slug.toLowerCase(),
 			theme_group = track_meta.animethemeentry.animetheme.group?.slug.toLowerCase() ?? "jp",
 			audio_extension = parseFilepathInfo(track_meta.video.audio.basename).extname.toLowerCase()
-		return `${track_index}-${anime_name}-${theme_slug}-${theme_group}${audio_extension}`
+		// the line below was disabled because `theme_slug` typically includes the `theme_group`, thus we'll only make it redundant
+		// return `${track_index}-${anime_name}-${theme_slug}-${theme_group}${audio_extension}`
+		return `${track_index}-${anime_name}-${theme_slug}${audio_extension}`
 	},
 	titleFn: (track_meta: TrackResourceMeta, track_index: number) => {
 		const
 			anime_name = track_meta.animethemeentry.animetheme.anime.name,
 			theme_slug = track_meta.animethemeentry.animetheme.slug.toUpperCase(),
 			theme_group = track_meta.animethemeentry.animetheme.group?.slug.toUpperCase() ?? "JP"
-		return `${track_index} - ${anime_name} - ${theme_slug} ${theme_group}`
+		// the line below was disabled because `theme_slug` typically includes the `theme_group`, thus we'll only make it redundant
+		// return `${track_index} - ${anime_name} - ${theme_slug} ${theme_group}`
+		return `${track_index} - ${anime_name} - ${theme_slug}`
 	},
 }
 
@@ -62,7 +72,7 @@ const linkFn = (track_meta: TrackResourceMeta, track_index?: number, full_track_
 
 export const downloadPlaylistToFs = async (playlist_id: string, config: Partial<DownloadPlaylistToFsConfig> = {}): Promise<void> => {
 	const
-		{ dir, playlist, dryrun, filenameFn, titleFn } = { ...default_DownloadPlaylistToFsConfig, ...config },
+		{ dir, playlist, dryrun, filenameFn, titleFn } = { ...defaultDownloadPlaylistToFsConfig, ...config },
 		track_meta_list = await fetchPlaylistMetadata(playlist_id)
 	await emptyDir(dir)
 	const download_list = track_meta_list.map((track_meta, index, list): AudioFileDownloadDescription => {
