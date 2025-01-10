@@ -1,0 +1,17 @@
+# distribution builds and documentation builds
+/out/
+/dist/
+/docs/
+/node_modules/
+/npm/
+/temp/
+/package.json
+/tsconfig.json
+
+# version lock files
+/deno.lock
+/deno.d.ts
+
+# automatic file clones
+/src/readme.md
+/src/license.md
