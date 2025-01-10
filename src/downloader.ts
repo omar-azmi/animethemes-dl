@@ -2,6 +2,7 @@ import { emptyDir, ensureFile } from "jsr:@std/fs@1.0.8"
 import { fetchPlaylistMetadata } from "./api/playlist_metadata.ts"
 import type { TrackResourceMeta } from "./api/typedefs.ts"
 import { joinPaths, parseFilepathInfo } from "./deps.ts"
+import { batchPromisesMap_Factory } from "./funcdefs.ts"
 import { encodeM3u8, type M3u8Entry } from "./m3u/codec.ts"
 import type { AudioFileDownloadDescription } from "./typedefs.ts"
 
@@ -18,6 +19,14 @@ export interface DownloadPlaylistToFsConfig {
 	 * @defaultValue `"./out/playlist.m3u"`
 	*/
 	playlist: string
+
+	/** download audio files in batches to speed up the overall download process.
+	 * 
+	 * you don't want to set it to something too large (like over `50`), because the server may then refuse to serve you altogether.
+	 * 
+	 * @defaultValue `20`
+	*/
+	batchSize: number
 
 	/** if dryrun is enabled, then nothing will be stored onto your filesystem, and the audio files will not be fetched either.
 	 * 
@@ -37,6 +46,7 @@ export interface DownloadPlaylistToFsConfig {
 export const defaultDownloadPlaylistToFsConfig: DownloadPlaylistToFsConfig = {
 	dir: "./out/tracks/",
 	playlist: "./out/playlist.m3u",
+	batchSize: 20,
 	dryrun: false,
 	filenameFn: (track_meta: TrackResourceMeta, track_index: number) => {
 		const anime_name_char_limit = 30
@@ -72,9 +82,12 @@ const linkFn = (track_meta: TrackResourceMeta, track_index?: number, full_track_
 
 export const downloadPlaylistToFs = async (playlist_id: string, config: Partial<DownloadPlaylistToFsConfig> = {}): Promise<void> => {
 	const
-		{ dir, playlist, dryrun, filenameFn, titleFn } = { ...defaultDownloadPlaylistToFsConfig, ...config },
+		{ dir, playlist, batchSize, dryrun, filenameFn, titleFn } = { ...defaultDownloadPlaylistToFsConfig, ...config },
 		track_meta_list = await fetchPlaylistMetadata(playlist_id)
-	await emptyDir(dir)
+
+	console.log(`[fs] emptying output directory for downloading the audio files: "${dir}"`)
+	if (!dryrun) { await emptyDir(dir) }
+
 	const download_list = track_meta_list.map((track_meta, index, list): AudioFileDownloadDescription => {
 		const
 			url = linkFn(track_meta, index, list),
@@ -86,19 +99,19 @@ export const downloadPlaylistToFs = async (playlist_id: string, config: Partial<
 		return { path, name: title }
 	}), playlist)
 
-	// we download the audio files one by one instead of queuing all of them in one go,
-	// because we don't want the server to blacklist us for making too many requests too quickly.
-	// TODO: in the future, process the download links in batches
-	for (const { url, path, title } of download_list) {
-		if (!dryrun) {
-			const bytes = await (await fetch(url)).bytes()
-			await ensureFile(path)
-			await Deno.writeFile(path, bytes)
+	await batchPromisesMap_Factory<AudioFileDownloadDescription, void>(
+		batchSize,
+		async ({ url, path, title }, index) => {
+			if (!dryrun) {
+				const bytes = await (await fetch(url)).bytes()
+				await ensureFile(path)
+				await Deno.writeFile(path, bytes)
+			}
+			console.log(`[fetch-fs ${index}] downloaded "${title}" to "${path}"`)
 		}
-		console.log(`downloaded "${title}" to "${path}"`)
-	}
+	)(download_list)
 
-	console.log(`creating local playlist file at location: "${playlist}"`)
+	console.log(`[fs] creating local playlist file at location: "${playlist}"`)
 	if (!dryrun) {
 		await ensureFile(playlist)
 		await Deno.writeTextFile(playlist, playlist_content)

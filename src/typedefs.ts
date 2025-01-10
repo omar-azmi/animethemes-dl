@@ -1,3 +1,8 @@
+/** contains common top level interfaces.
+ * 
+ * @module
+*/
+
 export interface AudioFileDownloadDescription {
 	/** the url to fetch the audio from. */
 	url: string | URL
